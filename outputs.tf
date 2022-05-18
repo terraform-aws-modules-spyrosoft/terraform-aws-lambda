@@ -39,6 +39,11 @@ output "lambda_function_source_code_hash" {
   value       = try(aws_lambda_function.this[0].source_code_hash, "")
 }
 
+output "lambda_s3_existing_package_hash" {
+  description = "Base64-encoded representation of raw SHA-256 sum of the S3 package file"
+  value       = try(local.s3_existing_package_hash, "")
+}
+
 output "lambda_function_source_code_size" {
   description = "The size in bytes of the function .zip file"
   value       = try(aws_lambda_function.this[0].source_code_size, "")

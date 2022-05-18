@@ -17,6 +17,7 @@ locals {
   s3_key            = var.s3_existing_package != null ? try(var.s3_existing_package.key, null) : (var.store_on_s3 ? var.s3_prefix != null ? format("%s%s", var.s3_prefix, replace(local.archive_filename_string, "/^.*//", "")) : replace(local.archive_filename_string, "/^\\.//", "") : null)
   s3_object_version = var.s3_existing_package != null ? try(var.s3_existing_package.version_id, null) : (var.store_on_s3 ? try(aws_s3_object.lambda_package[0].version_id, null) : null)
 
+  s3_existing_package_hash = try(data.aws_s3_object.s3_existing_package_object[0].tags["base64sha256"], null)
 }
 
 resource "aws_lambda_function" "this" {
@@ -47,7 +48,7 @@ resource "aws_lambda_function" "this" {
   }
 
   filename         = local.filename
-  source_code_hash = var.ignore_source_code_hash ? null : (local.filename == null ? false : fileexists(local.filename)) && !local.was_missing ? filebase64sha256(local.filename) : null
+  source_code_hash = var.ignore_source_code_hash ? null : local.s3_existing_package_hash != null ? local.s3_existing_package_hash : (local.filename == null ? false : fileexists(local.filename)) && !local.was_missing ? filebase64sha256(local.filename) : null
 
   s3_bucket         = local.s3_bucket
   s3_key            = local.s3_key
@@ -120,7 +121,7 @@ resource "aws_lambda_layer_version" "this" {
   skip_destroy             = var.layer_skip_destroy
 
   filename         = local.filename
-  source_code_hash = var.ignore_source_code_hash ? null : (local.filename == null ? false : fileexists(local.filename)) && !local.was_missing ? filebase64sha256(local.filename) : null
+  source_code_hash = var.ignore_source_code_hash ? null : local.s3_existing_package_hash != null ? local.s3_existing_package_hash : (local.filename == null ? false : fileexists(local.filename)) && !local.was_missing ? filebase64sha256(local.filename) : null
 
   s3_bucket         = local.s3_bucket
   s3_key            = local.s3_key
@@ -143,6 +144,12 @@ resource "aws_s3_object" "lambda_package" {
   tags = var.s3_object_tags_only ? var.s3_object_tags : merge(var.tags, var.s3_object_tags)
 
   depends_on = [null_resource.archive]
+}
+
+data "aws_s3_object" "s3_existing_package_object" {
+  count  = var.s3_existing_package != null ? 1 : 0
+  bucket = try(var.s3_existing_package.bucket, null)
+  key    = try(var.s3_existing_package.key, null)
 }
 
 data "aws_cloudwatch_log_group" "lambda" {
