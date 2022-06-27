@@ -581,6 +581,12 @@ variable "ignore_source_code_hash" {
   default     = false
 }
 
+variable "function_source_code_hash" {
+  description = "Provide custom soure code hash when pacakge build in the fly during TF deployment."
+  type        = string
+  default     = null
+}
+
 variable "local_existing_package" {
   description = "The absolute path to an existing zip-file to use"
   type        = string
